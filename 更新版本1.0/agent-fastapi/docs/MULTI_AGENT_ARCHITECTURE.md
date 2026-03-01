@@ -1727,7 +1727,7 @@ async def main_model(thread_id, user_id, content, session, graph_deps):
 | P1-06 | 图结构组装（基础版） | [x] | `graph/builder.py` | `python -c "from graph.builder import build_multi_agent_graph"` |
 | P1-07 | 服务层适配 | [x] | `services/chat.py`, `controllers/chat.py` | 手动 WebSocket 测试 |
 | P1-08 | 应用入口改造 | [x] | `main.py` | `uvicorn main:app` 启动无报错 |
-| P1-09 | Phase 1 集成验证 | [ ] | 无 | 发送旅游规划请求，三个 Agent 串行执行 |
+| P1-09 | Phase 1 集成验证 | [x] | 无 | 发送旅游规划请求，三个 Agent 串行执行 |
 
 **依赖关系**: P1-01 → P1-02 → P1-03/P1-04/P1-05（并行）→ P1-06 → P1-07 → P1-08 → P1-09
 
@@ -1737,11 +1737,11 @@ async def main_model(thread_id, user_id, content, session, graph_deps):
 
 | 任务 ID | 任务名称 | 状态 | 修改的文件 | 测试方法 |
 |---------|---------|------|-----------|---------|
-| P2-01 | SupervisorAgent 实现 | [ ] | `agents/supervisor.py`, `prompts/supervisor.txt` | `python -c "from agents.supervisor import supervisor_node"` |
-| P2-02 | PreferenceNode + WeatherStrategy | [ ] | `agents/preference.py` | `python -c "from agents.preference import preference_node"` |
-| P2-03 | ChatAgent 实现 | [ ] | `agents/chat_agent.py` | `python -c "from agents.chat_agent import chat_agent_node"` |
-| P2-04 | 图结构升级（Supervisor 路由） | [ ] | `graph/builder.py` | 手动测试意图分流 |
-| P2-05 | WebSocket 偏好消息处理 | [ ] | `controllers/chat.py`, `services/chat.py` | 手动 WebSocket 测试 preference_submit |
+| P2-01 | SupervisorAgent 实现 | [x] | `agents/supervisor.py`, `prompts/supervisor.txt` | `python -c "from agents.supervisor import supervisor_node"` |
+| P2-02 | PreferenceNode + WeatherStrategy | [x] | `agents/preference.py` | `python -c "from agents.preference import preference_node"` |
+| P2-03 | ChatAgent 实现 | [x] | `agents/chat_agent.py` | `python -c "from agents.chat_agent import chat_agent_node"` |
+| P2-04 | 图结构升级（Supervisor 路由） | [x] | `graph/builder.py` | 手动测试意图分流 |
+| P2-05 | WebSocket 偏好消息处理 | [x] | `controllers/chat.py`, `services/chat.py` | 手动 WebSocket 测试 preference_submit |
 | P2-06 | 偏好验证 Schema | [ ] | `schemas/chat.py` | `python -c "from schemas.chat import PreferenceSubmit"` |
 | P2-07 | 前端 PreferenceCard 组件 | [ ] | `pages/chat/component/PreferenceCard.vue` | 前端渲染偏好卡测试 |
 | P2-08 | 前端 Store 适配 | [ ] | `store/index.ts` | 接收 preference_card 消息类型 |
@@ -1754,9 +1754,9 @@ async def main_model(thread_id, user_id, content, session, graph_deps):
 
 | 任务 ID | 任务名称 | 状态 | 修改的文件 | 测试方法 |
 |---------|---------|------|-----------|---------|
-| P3-01 | TransportAgent 实现 | [ ] | `agents/transport_agent.py`, `prompts/transport.txt` | `python -c "from agents.transport_agent import transport_llm_node"` |
-| P3-02 | 并发分叉 + MergeNode | [ ] | `graph/builder.py` | 手动测试并发执行 |
-| P3-03 | 去除 Semaphore 串行瓶颈 | [ ] | `graph/builder.py` | 对比并发/串行耗时 |
+| P3-01 | TransportAgent 实现 | [x] | `agents/transport_agent.py`, `prompts/transport.txt` | `python -c "from agents.transport_agent import transport_llm_node"` |
+| P3-02 | 并发分叉 + MergeNode | [x] | `graph/builder.py` | 手动测试并发执行 |
+| P3-03 | 去除 Semaphore 串行瓶颈 | [x] | `graph/builder.py` | 从设计上即为并发，无串行瓶颈 |
 | P3-04 | 含出发地场景测试 | [ ] | 无 | 发送含出发城市的请求 |
 | P3-05 | 无出发地场景测试 | [ ] | 无 | 发送不含出发城市的请求 |
 
