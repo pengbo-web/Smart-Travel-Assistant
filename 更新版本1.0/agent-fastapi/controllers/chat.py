@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect
 from jwt_create import get_current_user_ws, get_current_user
 from typing import Dict
 from sqlmodel import Session, select
@@ -13,29 +13,24 @@ from schemas.chat import GetConversationValidate
 
 
 # ────────────────────────────────────────────────────────
-# 从 app.state 获取工具分组（Multi-Agent 版）
+# 从 app.state 获取图依赖（Multi-Agent 版）
 # ────────────────────────────────────────────────────────
 
 
-def get_tool_groups_ws(websocket: WebSocket) -> dict:
-    """WebSocket 专用：从 app.state 获取工具分组"""
-    tool_groups = getattr(websocket.app.state, "tool_groups", None)
-    if tool_groups is None:
-        raise RuntimeError("工具分组未初始化")
-    return tool_groups
+def get_graph_deps_ws(websocket: WebSocket) -> dict:
+    """WebSocket 专用：从 app.state 获取图依赖 (tool_groups + checkpointer + store)"""
+    graph_deps = getattr(websocket.app.state, "graph_deps", None)
+    if graph_deps is None:
+        raise RuntimeError("graph_deps 未初始化")
+    return graph_deps
 
 
-def get_tool_groups(request=Depends()):
-    """HTTP 接口专用：从 app.state 获取工具分组"""
-    from fastapi import Request
-
-    def _inner(request: Request) -> dict:
-        tool_groups = getattr(request.app.state, "tool_groups", None)
-        if tool_groups is None:
-            raise RuntimeError("工具分组未初始化")
-        return tool_groups
-
-    return _inner
+def get_graph_deps_http(request) -> dict:
+    """HTTP 接口专用：从 app.state 获取图依赖"""
+    graph_deps = getattr(request.app.state, "graph_deps", None)
+    if graph_deps is None:
+        raise RuntimeError("graph_deps 未初始化")
+    return graph_deps
 
 
 router = APIRouter(prefix="/chat", tags=["和模型对话"])
@@ -54,8 +49,8 @@ async def send_message(
     if user_id == "401":
         return
 
-    # 从 app.state 获取工具分组
-    tool_groups = get_tool_groups_ws(websocket)
+    # 从 app.state 获取图依赖（包含 tool_groups + checkpointer + store）
+    graph_deps = get_graph_deps_ws(websocket)
 
     try:
         while True:
@@ -75,7 +70,7 @@ async def send_message(
                     continue
                 try:
                     async for event in main_model(
-                        sessionId, user_id, "", session, tool_groups,
+                        sessionId, user_id, "", session, graph_deps,
                         msg_type="preference_submit",
                         preferences=preferences,
                     ):
@@ -98,7 +93,7 @@ async def send_message(
                     continue
                 try:
                     async for event in main_model(
-                        sessionId, user_id, content, session, tool_groups,
+                        sessionId, user_id, content, session, graph_deps,
                     ):
                         await websocket.send_json(event)
                     await websocket.send_json(
@@ -139,17 +134,12 @@ async def all_conversation_list(
 @router.post("/get_conversation")
 async def get_conversation(
     req: GetConversationValidate,
+    request: Request = None,  # type: ignore[assignment]
     user_id: str = Depends(get_current_user),
 ):
-    # 从请求中获取 tool_groups
-    from fastapi import Request
-
-    # 注意：此处需要从 app.state 获取 tool_groups
-    # 但 Depends 无法直接在 post 中获取 Request，所以走全局变量
-    # TODO: P1-08 中通过 main.py 改造统一注入
-    tool_groups = {}  # 占位，将在 P1-08 中通过 Depends 注入
+    graph_deps = get_graph_deps_http(request)
     print(req.sessionId)
-    res = await conversation_data(req.sessionId, tool_groups)
+    res = await conversation_data(req.sessionId, graph_deps)
     return response(res)
 
 

@@ -1726,7 +1726,7 @@ async def main_model(thread_id, user_id, content, session, graph_deps):
 | P1-05 | MapRouteAgent 实现 | [x] | `agents/map_route_agent.py`, `prompts/map_route.txt` | `python -c "from agents.map_route_agent import map_route_llm_node"` |
 | P1-06 | 图结构组装（基础版） | [x] | `graph/builder.py` | `python -c "from graph.builder import build_multi_agent_graph"` |
 | P1-07 | 服务层适配 | [x] | `services/chat.py`, `controllers/chat.py` | 手动 WebSocket 测试 |
-| P1-08 | 应用入口改造 | [ ] | `main.py` | `uvicorn main:app` 启动无报错 |
+| P1-08 | 应用入口改造 | [x] | `main.py` | `uvicorn main:app` 启动无报错 |
 | P1-09 | Phase 1 集成验证 | [ ] | 无 | 发送旅游规划请求，三个 Agent 串行执行 |
 
 **依赖关系**: P1-01 → P1-02 → P1-03/P1-04/P1-05（并行）→ P1-06 → P1-07 → P1-08 → P1-09

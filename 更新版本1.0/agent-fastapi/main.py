@@ -4,10 +4,19 @@ from fastapi.exceptions import RequestValidationError
 from database import init_db
 from contextlib import asynccontextmanager
 import os
+from dotenv import load_dotenv
 from fastapi.staticfiles import StaticFiles
 
-# 引入mcp工具
-from state_graph import client, tontyi, map_data
+load_dotenv()
+
+# ── Multi-Agent 依赖 ──
+from tool import client
+from graph.tool_groups import split_tools
+from agents.map_route_agent import map_data
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langgraph.store.postgres.aio import AsyncPostgresStore
+
+DB_URI = str(os.getenv("DB_URI"))
 
 # 用户相关的接口
 from controllers.user import router as user_router
@@ -19,28 +28,40 @@ from controllers.chat import router as chat_router
 from controllers.voice import router as voice_router
 
 
-# 声明周期管理
+# ── 生命周期管理（Multi-Agent 版） ──
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 应用启动时
+    # 初始化数据库
     init_db()
-    # 读取mcp工具
+
+    # 读取 MCP 远程工具 + 本地 map_data 工具
     mcp_tools = await client.get_tools()
-    # 加入本地 map_data 工具
     all_tools = mcp_tools + [map_data]
-    print("执行工具读取-------", all_tools)
-    llm_with_tools = tontyi.bind_tools(all_tools)
-    # print('模型读取mcp工具----',llm_with_tools)
-    tools_by_name = {tool.name: tool for tool in all_tools}
-    print("应用启动时执行")
-    # 全局缓存
-    app.state.tool_cache = {
-        "tools_by_name": tools_by_name,
-        "llm_with_tools": llm_with_tools,
-        "all_tools": all_tools,
-    }
-    yield
-    print("应用关闭时执行")
+    print(f"[启动] 加载工具 {len(all_tools)} 个:", [t.name for t in all_tools])
+
+    # 工具按职责分组
+    tool_groups = split_tools(all_tools)
+    print(f"[启动] 工具分组: {list(tool_groups.keys())}")
+
+    # 全局 PostgreSQL 连接池（生命周期与应用一致）
+    async with (
+        AsyncPostgresStore.from_conn_string(DB_URI) as store,
+        AsyncPostgresSaver.from_conn_string(DB_URI) as checkpointer,
+    ):
+        await store.setup()
+        await checkpointer.setup()
+        print("[启动] PostgreSQL checkpointer/store 就绪")
+
+        # ★ 统一挂载到 app.state，供 services / controllers 使用
+        app.state.graph_deps = {
+            "tool_groups": tool_groups,
+            "checkpointer": checkpointer,
+            "store": store,
+        }
+        print("[启动] Multi-Agent 应用就绪")
+        yield
+
+    print("[关闭] PostgreSQL 连接池已释放")
 
 
 app = FastAPI(lifespan=lifespan)
