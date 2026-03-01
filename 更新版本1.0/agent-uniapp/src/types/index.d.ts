@@ -65,6 +65,17 @@ export type MarkersType = {
   iconPath: string;
   width: number;
   height: number;
+  label?: {
+    content: string;
+    color: string;
+    fontSize: number;
+    bgColor: string;
+    borderRadius: number;
+    padding: number;
+    anchorX: number;
+    anchorY: number;
+    textAlign: string;
+  };
   callout: {
     content: string;
     color: string;
@@ -109,6 +120,7 @@ export type ModelMapType = {
   day: string;
   marker: {
     id: number;
+    order?: number;   // ★ 推荐游览顺序编号（1-based）
     latitude: number;
     longitude: number;
     content: string;

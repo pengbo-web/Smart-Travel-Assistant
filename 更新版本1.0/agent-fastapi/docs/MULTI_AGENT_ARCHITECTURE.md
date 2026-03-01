@@ -1173,14 +1173,34 @@ plan_writer_llm → [有工具调用(search-image)?]
 
 ---
 
-### 5.8 MapRouteAgent — 路线规划
+### 5.8 MapRouteAgent — 路线规划（带编号景点路线图）
 
 **文件**: `agents/map_route_agent.py`  
 **模型**: `qwen3-max`  
 **工具**: `map_data` ★（此 Agent 是唯一持有 `map_data` 的节点）  
-**职责**: 从攻略中提取景点经纬度，按天调用腾讯地图生成路线
+**职责**: 从攻略中提取景点经纬度，按天调用腾讯地图生成 **带编号的景点路线图**
 
-#### 5.8.1 Prompt
+#### 5.8.1 编号路线图设计
+
+前端渲染效果（目标）：
+```
+  ①杭州西湖 ──polyline──→ ②白堤 ──polyline──→ ③断桥 ──→ ④湖滨银泰 ──→ ⑤...
+```
+
+**核心改进**：每个景点 marker 携带 `order` 字段（1-based），前端用编号气泡（青色圆底 + 白色数字）取代通用图标，用户可直观看到推荐游览顺序。
+
+**数据流变更**：
+```
+map_data 工具返回 → marker[].order 字段
+                   ↓
+WebSocket → 前端 ModelMapType.marker[].order
+                   ↓
+makeUpMap() → UniApp marker label（编号圆圈）
+           → UniApp marker callout（景点名称）
+           → polyline（蓝色路线）
+```
+
+#### 5.8.2 Prompt
 
 **文件**: `prompts/map_route.txt`
 
@@ -1194,11 +1214,24 @@ plan_writer_llm → [有工具调用(search-image)?]
 1. 从攻略中提取每天涉及的景点名称
 2. 查询各景点的经纬度（如果攻略中没有经纬度信息，使用常识估算或跳过）
 3. 每天调用一次 map_data 工具，传入：
-   - from_location: 起点经纬度 "lat,lng"
-   - to_location: 终点经纬度 "lat,lng"
+   - from_location: 起点经纬度 "lat,lng"（第一个景点）
+   - to_location: 终点经纬度 "lat,lng"（最后一个景点）
    - waypoints: 途经点经纬度（多个用分号拼接）
    - day: "第一天" / "第二天" / ...
    - markers: 景点标记列表
+
+## ★ markers 编号规则（必须遵守）
+- 每个 marker 必须包含 order 字段，从 1 开始递增
+- order 表示推荐游览顺序：order=1 是第一站，order=2 是第二站...
+- markers 数组的顺序必须按 order 升序排列
+- from_location 对应 order=1 的景点
+- to_location 对应 order 最大的景点
+- 中间景点按 order 顺序拼接到 waypoints
+
+markers 结构示例：
+[{"id": 1001, "order": 1, "latitude": 30.25, "longitude": 120.15, "content": "西湖"},
+ {"id": 1002, "order": 2, "latitude": 30.26, "longitude": 120.16, "content": "白堤"},
+ {"id": 1003, "order": 3, "latitude": 30.27, "longitude": 120.17, "content": "断桥"}]
 
 ## 调用规则
 - 某天只有 1 个景点时不调用 map_data
@@ -1213,7 +1246,7 @@ plan_writer_llm → [有工具调用(search-image)?]
 - 完成所有天的路线调用后，直接结束，不输出额外文字
 ```
 
-#### 5.8.2 内部循环图
+#### 5.8.3 内部循环图
 
 ```
 map_route_llm → [有工具调用(map_data)?]
@@ -1221,16 +1254,91 @@ map_route_llm → [有工具调用(map_data)?]
     └── 否 → END
 ```
 
-#### 5.8.3 map_data 工具（保持不变）
+#### 5.8.4 map_data 工具（增强 order 字段）
 
-沿用现有的 `map_data` 本地工具实现，不做修改。工具从 `state_graph.py` 提取到独立文件：
+从 `state_graph.py` 迁移到 `agents/map_route_agent.py`，核心功能不变（腾讯地图驾车路线 + 差分解压 polyline），增加 `marker[].order` 透传。
 
 ```python
-# agents/map_route_agent.py 中包含 map_data 工具定义
-# 保持与现有实现完全一致的功能：
-# - 调用腾讯地图驾车路线 API
-# - 差分解压 polyline 坐标
-# - 返回 {"points": [...], "type": "route_polyline", "day": "...", "marker": [...]}
+# map_data 工具返回结构（增强版）
+{
+  "points": [{"latitude": 30.25, "longitude": 120.15}, ...],  # polyline 坐标
+  "type": "route_polyline",
+  "day": "第一天",
+  "marker": [
+    {"id": 1001, "order": 1, "latitude": 30.25, "longitude": 120.15, "content": "西湖"},
+    {"id": 1002, "order": 2, "latitude": 30.26, "longitude": 120.16, "content": "白堤"},
+    ...
+  ]
+}
+```
+
+#### 5.8.5 前端编号 marker 渲染
+
+**改动文件**: `agent-uniapp/src/api/map.ts`, `agent-uniapp/src/types/index.d.ts`
+
+**ModelMapType.marker 增加 `order` 字段**：
+```typescript
+marker: {
+  id: number;
+  order: number;       // ★ 新增：游览顺序编号（1-based）
+  latitude: number;
+  longitude: number;
+  content: string;
+}[];
+```
+
+**MarkersType 增加 `label` 属性**（编号圆圈）：
+```typescript
+// UniApp <map> marker.label — 用于显示编号
+label: {
+  content: string;     // "1", "2", "3"...
+  color: "#ffffff";    // 白色数字
+  fontSize: 14;
+  bgColor: "#26C6DA";  // 青色圆底（与截图一致）
+  borderRadius: 50;    // 圆形
+  padding: 6;
+  anchorX: number;
+  anchorY: number;
+};
+```
+
+**makeUpMap() 核心变更**：
+```typescript
+// 按 order 排序后生成 marker
+const sorted = [...markers].sort((a, b) => a.order - b.order);
+sorted.forEach((item) => {
+  markersData.push({
+    id: item.id,
+    latitude: item.latitude,
+    longitude: item.longitude,
+    iconPath: dotIcon,      // 缩小为透明锚点（2×2）
+    width: 2, height: 2,
+    label: {                // ★ 编号圆圈
+      content: ` ${item.order} `,
+      color: "#ffffff",
+      fontSize: 14,
+      bgColor: "#26C6DA",
+      borderRadius: 50,
+      padding: 6,
+      anchorX: -10, anchorY: -35,
+    },
+    callout: {              // 景点名称气泡（保留）
+      content: item.content,
+      ...existingCalloutStyle,
+    },
+  });
+});
+```
+
+**Polyline 样式调整**（匹配编号路线图风格）：
+```typescript
+polyline: [{
+  points: points,
+  color: "#29B6F6",     // 亮蓝色（与编号圆圈色系协调）
+  width: 8,             // 加粗路线
+  borderColor: "#0288D1",
+  borderWidth: 1,
+}]
 ```
 
 ---
