@@ -1614,7 +1614,7 @@ async def main_model(thread_id, user_id, content, session, graph_deps):
 | P1-01 | 共享状态定义 | [x] | `graph/__init__.py`, `graph/state.py` | `python -c "from graph.state import MultiAgentState"` |
 | P1-02 | 工具分组隔离 | [x] | `graph/tool_groups.py` | `python -c "from graph.tool_groups import split_tools"` |
 | P1-03 | ResearchAgent 实现 | [x] | `agents/__init__.py`, `agents/research_agent.py`, `prompts/research.txt` | `python -c "from agents.research_agent import research_llm_node"` |
-| P1-04 | PlanWriterAgent 实现 | [ ] | `agents/plan_writer_agent.py`, `prompts/plan_writer.txt` | `python -c "from agents.plan_writer_agent import plan_writer_llm_node"` |
+| P1-04 | PlanWriterAgent 实现 | [x] | `agents/plan_writer_agent.py`, `prompts/plan_writer.txt` | `python -c "from agents.plan_writer_agent import plan_writer_llm_node"` |
 | P1-05 | MapRouteAgent 实现 | [ ] | `agents/map_route_agent.py`, `prompts/map_route.txt` | `python -c "from agents.map_route_agent import map_route_llm_node"` |
 | P1-06 | 图结构组装（基础版） | [ ] | `graph/builder.py` | `python -c "from graph.builder import build_multi_agent_graph"` |
 | P1-07 | 服务层适配 | [ ] | `services/chat.py` | 手动 WebSocket 测试 |
