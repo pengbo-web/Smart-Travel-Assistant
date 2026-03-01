@@ -2,13 +2,13 @@
 SupervisorAgent — 意图路由
 
 职责: 解析用户意图（travel_plan / chat），提取目的地和天数，路由到对应分支
-模型: qwen-max（轻量结构化输出，只做分类不做生成）
+模型: qwen3-max（结构化输出，通过 DashScope OpenAI 兼容端点）
 工具: 无
 """
 
 import os
 
-from langchain_community.chat_models.tongyi import ChatTongyi
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import AIMessage
 from pydantic import BaseModel, Field
 from typing import Literal
@@ -64,10 +64,11 @@ SUPERVISOR_PROMPT = """你是旅游助手的意图分析模块，只负责分析
 
 
 def _create_supervisor_llm():
-    """创建 Supervisor 专用的结构化输出 LLM"""
-    llm = ChatTongyi(
-        model="qwen-max",
+    """创建 Supervisor 专用的结构化输出 LLM（DashScope OpenAI 兼容端点）"""
+    llm = ChatOpenAI(
+        model="qwen3-max",
         api_key=os.getenv("API_KEY"),
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
     )
     return llm.with_structured_output(SupervisorOutput)
 

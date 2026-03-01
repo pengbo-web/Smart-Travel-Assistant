@@ -4,6 +4,7 @@ from typing import Dict
 from sqlmodel import Session, select
 from database import get_session
 from services.chat import main_model, conversation_data
+import traceback
 import uuid
 from core.response import response
 from models.conversations_list import ConversationsList
@@ -87,9 +88,9 @@ async def send_message(
                         {"role": "end", "content": "模型回复结束", "code": 200}
                     )
                 except Exception as err:
-                    print(err)
+                    traceback.print_exc()
                     await websocket.send_json(
-                        {"role": "end", "content": "出错了", "code": 500}
+                        {"role": "end", "content": f"出错了: {type(err).__name__}", "code": 500}
                     )
             else:
                 # 普通消息
@@ -108,9 +109,9 @@ async def send_message(
                         {"role": "end", "content": "模型回复结束", "code": 200}
                     )
                 except Exception as err:
-                    print(err)
+                    traceback.print_exc()
                     await websocket.send_json(
-                        {"role": "end", "content": "出错了", "code": 500}
+                        {"role": "end", "content": f"出错了: {type(err).__name__}", "code": 500}
                     )
     except WebSocketDisconnect as error:
         print("用户断开连接", error)
