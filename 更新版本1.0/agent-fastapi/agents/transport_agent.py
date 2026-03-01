@@ -17,7 +17,7 @@ from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 
-from graph.state import MultiAgentState
+from graph.state import MultiAgentState, find_last_ai_with_tool_calls, find_last_ai_message, sanitize_messages_for_api
 
 
 def _load_prompt(path: str) -> str:
@@ -93,7 +93,8 @@ async def transport_llm_node(
 
     llm_with_tools = _create_transport_llm(tools)
 
-    messages = [SystemMessage(content=prompt_text)] + state["messages"][-1:]
+    # 清理消息历史，确保 tool_calls/ToolMessage 配对完整
+    messages = [SystemMessage(content=prompt_text)] + sanitize_messages_for_api(list(state["messages"]))
     response = await llm_with_tools.ainvoke(messages)
     return {"messages": [response]}
 
@@ -107,7 +108,7 @@ async def transport_tool_node(
     并发执行多个交通查询工具调用。
     """
     tools_by_name: dict[str, BaseTool] = {t.name: t for t in tools}
-    last_message = cast(AIMessage, state["messages"][-1])
+    last_message = find_last_ai_with_tool_calls(state["messages"])
 
     tasks = []
     for tc in last_message.tool_calls:
@@ -154,7 +155,7 @@ async def transport_done_node(state: MultiAgentState) -> dict:
     提取最后一条 AI 消息作为 transport_result，
     标记 transport_done = True。
     """
-    last_ai = cast(AIMessage, state["messages"][-1])
+    last_ai = find_last_ai_message(state["messages"])
     return {
         "transport_result": last_ai.content,
         "transport_done": True,

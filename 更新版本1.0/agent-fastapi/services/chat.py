@@ -77,9 +77,20 @@ async def main_model(
         input_data = {"messages": [{"role": "user", "content": content}]}
 
     # ── 流式输出 ──
+    # 不向前端转发的内部节点（supervisor 输出是结构化 JSON，不应展示给用户）
+    _INTERNAL_NODES = {"supervisor", "weather_strategy", "merge_node",
+                       "transport_check", "research_done", "transport_done",
+                       "plan_writer_done"}
+
     async for item, metadata in graph.astream(
         input_data, stream_mode="messages", config=config
     ):
+        node = metadata.get("langgraph_node", "")
+
+        # 跳过内部路由/策略节点的输出
+        if node in _INTERNAL_NODES:
+            continue
+
         # 偏好卡片
         if isinstance(item, AIMessageChunk):
             if item.additional_kwargs.get("type") == "preference_card":

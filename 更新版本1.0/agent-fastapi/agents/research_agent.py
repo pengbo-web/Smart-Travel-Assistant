@@ -15,7 +15,7 @@ from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 
-from graph.state import MultiAgentState
+from graph.state import MultiAgentState, find_last_ai_with_tool_calls, find_last_ai_message, sanitize_messages_for_api
 
 
 def _load_prompt(path: str) -> str:
@@ -65,8 +65,8 @@ async def research_llm_node(state: MultiAgentState, tools: list[BaseTool]) -> di
 
     llm_with_tools = _create_research_llm(tools)
 
-    # 只传系统提示 + 最后一条用户消息（减少 token 消耗）
-    messages = [SystemMessage(content=prompt_text)] + state["messages"][-1:]
+    # 清理消息历史，确保 tool_calls/ToolMessage 配对完整（不同 Agent 消息可能交叉）
+    messages = [SystemMessage(content=prompt_text)] + sanitize_messages_for_api(list(state["messages"]))
     response = await llm_with_tools.ainvoke(messages)
     return {"messages": [response]}
 
@@ -79,7 +79,7 @@ async def research_tool_node(state: MultiAgentState, tools: list[BaseTool]) -> d
     天气查询和景点搜索互不依赖，可以同时发起。
     """
     tools_by_name: dict[str, BaseTool] = {t.name: t for t in tools}
-    last_message = cast(AIMessage, state["messages"][-1])
+    last_message = find_last_ai_with_tool_calls(state["messages"])
 
     # 构造并发任务列表
     tasks = []
@@ -130,7 +130,7 @@ async def research_done_node(state: MultiAgentState) -> dict:
     提取最后一条 AI 消息的内容作为 research_result，
     并标记 research_done = True，供 MergeNode 检查。
     """
-    last_ai = cast(AIMessage, state["messages"][-1])
+    last_ai = find_last_ai_message(state["messages"])
     return {
         "research_result": last_ai.content,
         "research_done": True,

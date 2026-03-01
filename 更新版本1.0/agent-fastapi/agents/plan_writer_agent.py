@@ -16,7 +16,7 @@ from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 
-from graph.state import MultiAgentState
+from graph.state import MultiAgentState, find_last_ai_with_tool_calls, find_last_ai_message, extract_agent_tool_history
 
 
 def _load_prompt(path: str) -> str:
@@ -60,8 +60,11 @@ async def plan_writer_llm_node(
 
     llm_with_tools = _create_plan_writer_llm(tools)
 
-    # 系统提示 + 最后一条用户消息
-    messages = [SystemMessage(content=prompt_text)] + state["messages"][-1:]
+    # 只传入 plan_writer 自己的 ReAct 循环消息（按 search-image 工具名过滤），
+    # 不传入 Research/Transport 的工具调用历史（上下文已在 SystemMessage 中）
+    agent_tool_names = {t.name for t in tools}
+    own_messages = extract_agent_tool_history(state["messages"], agent_tool_names)
+    messages = [SystemMessage(content=prompt_text)] + own_messages
     response = await llm_with_tools.ainvoke(messages)
     return {"messages": [response]}
 
@@ -76,7 +79,7 @@ async def image_tool_node(
     使用 asyncio.gather 并发执行多个图片搜索请求。
     """
     tools_by_name: dict[str, BaseTool] = {t.name: t for t in tools}
-    last_message = cast(AIMessage, state["messages"][-1])
+    last_message = find_last_ai_with_tool_calls(state["messages"])
 
     tasks = []
     for tc in last_message.tool_calls:
@@ -123,7 +126,7 @@ async def plan_writer_done_node(state: MultiAgentState) -> dict:
     提取最后一条 AI 消息的内容作为 plan_content，
     供后续 MapRouteAgent 使用。
     """
-    last_ai = cast(AIMessage, state["messages"][-1])
+    last_ai = find_last_ai_message(state["messages"])
     return {
         "plan_content": last_ai.content,
     }

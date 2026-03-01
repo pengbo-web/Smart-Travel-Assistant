@@ -76,10 +76,15 @@ def _create_supervisor_llm():
 async def supervisor_node(state: MultiAgentState) -> dict:
     """
     Supervisor 节点：
-    1. 分析意图（travel_plan / chat）
-    2. 初始化偏好状态（如果是首次旅游请求）
-    3. 返回路由所需字段
+    1. 偏好已完成时跳过 LLM（节省 token，避免误判）
+    2. 分析意图（travel_plan / chat）
+    3. 初始化偏好状态（如果是首次旅游请求）
     """
+    # ★ 偏好已完成 → 跳过 LLM 重新分析，保留上一轮的 supervisor_result
+    # 避免 Resume 后最后一条消息是偏好卡片 AIMessage 导致误判
+    if state.get("preferences_done"):
+        return {}
+
     llm = _create_supervisor_llm()
 
     # 只传入最后一条用户消息（减少 token）
@@ -115,10 +120,10 @@ def supervisor_router(state: MultiAgentState) -> str:
         "preference_node"  — 首次旅游请求，推送偏好卡
         "weather_strategy" — 偏好已完成，进入规划流水线
     """
+    # ★ 优先检查: 偏好已完成 → 直接进入规划流水线（无需重新判断意图）
+    if state.get("preferences_done"):
+        return "weather_strategy"
     intent = state["supervisor_result"]["intent"]
     if intent == "chat":
         return "chat_agent"
-    # travel_plan
-    if state.get("preferences_done"):
-        return "weather_strategy"
     return "preference_node"

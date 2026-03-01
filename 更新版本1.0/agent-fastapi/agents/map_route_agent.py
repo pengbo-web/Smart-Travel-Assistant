@@ -18,7 +18,7 @@ from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 
-from graph.state import MultiAgentState
+from graph.state import MultiAgentState, find_last_ai_with_tool_calls, extract_agent_tool_history
 
 # ────────────────────────────────────────────────────────
 # map_data 本地工具（从 state_graph.py 迁移，完全保持原逻辑）
@@ -133,13 +133,27 @@ async def map_route_llm_node(state: MultiAgentState) -> dict:
     将 plan_content（攻略全文）注入 Prompt，
     让 LLM 逐天提取景点并调用 map_data。
     """
-    prompt_text = _load_prompt("prompts/map_route.txt").format(
-        plan_content=state.get("plan_content", "（暂无攻略内容）"),
+    # 使用 .replace() 而非 .format()，避免 prompt 中 JSON 示例的花括号
+    # （如 {"id": 1001, ...}）被误解析为 Python 格式化占位符
+    prompt_text = _load_prompt("prompts/map_route.txt").replace(
+        "{plan_content}", state.get("plan_content", "（暂无攻略内容）"),
     )
 
     llm_with_tools = _create_map_route_llm()
 
-    messages = [SystemMessage(content=prompt_text)] + state["messages"][-1:]
+    # 只传入 map_route 自己的 ReAct 循环消息（按 map_data 工具名过滤），
+    # 不传入其他 Agent 的工具调用历史（plan_content 已在 SystemMessage 中）
+    own_messages = extract_agent_tool_history(state["messages"], {"map_data"})
+    messages = [SystemMessage(content=prompt_text)] + own_messages
+
+    # DEBUG: 打印发送给 API 的消息列表
+    print(f"\n[DEBUG map_route_llm] 发送 {len(messages)} 条消息:")
+    for i, m in enumerate(messages):
+        tc_count = len(getattr(m, "tool_calls", []) or [])
+        tc_id = getattr(m, "tool_call_id", None)
+        content_preview = (m.content[:80] + "...") if m.content and len(m.content) > 80 else (m.content or "")
+        print(f"  [{i}] {type(m).__name__}: tc={tc_count} tc_id={tc_id} content={content_preview!r}")
+
     response = await llm_with_tools.ainvoke(messages)
     return {"messages": [response]}
 
@@ -151,7 +165,7 @@ async def map_tool_node(state: MultiAgentState) -> dict:
     仅处理 map_data 工具调用。每天一次调用，
     返回包含 polyline 和 markers 的路线 JSON。
     """
-    last_message = cast(AIMessage, state["messages"][-1])
+    last_message = find_last_ai_with_tool_calls(state["messages"])
 
     tasks = []
     for tc in last_message.tool_calls:
