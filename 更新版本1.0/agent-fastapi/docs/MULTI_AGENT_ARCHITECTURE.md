@@ -1770,7 +1770,7 @@ async def main_model(thread_id, user_id, content, session, graph_deps):
 |---------|---------|------|-----------|---------|
 | P4-01 | 删除旧文件 | [x] | 删除 `state_graph.py`, `model_prompt.py` | 全量导入无报错 |
 | P4-02 | 单元测试补充 | [x] | `tests/` | `pytest tests/unit/ -v` → 68 passed |
-| P4-03 | 集成测试 | [ ] | `tests/` | `pytest tests/integration/ -v` |
+| P4-03 | 集成测试 | [x] | `tests/` | `pytest tests/integration/ -v` → 44 passed |
 | P4-04 | 端到端测试 | [ ] | `tests/` | `pytest tests/e2e/ -v` |
 
 **依赖关系**: P4-01 → P4-02 → P4-03 → P4-04
