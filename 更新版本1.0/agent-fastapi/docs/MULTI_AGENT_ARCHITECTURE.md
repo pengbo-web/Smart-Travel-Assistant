@@ -1612,7 +1612,7 @@ async def main_model(thread_id, user_id, content, session, graph_deps):
 | 任务 ID | 任务名称 | 状态 | 修改的文件 | 测试方法 |
 |---------|---------|------|-----------|---------|
 | P1-01 | 共享状态定义 | [x] | `graph/__init__.py`, `graph/state.py` | `python -c "from graph.state import MultiAgentState"` |
-| P1-02 | 工具分组隔离 | [ ] | `graph/tool_groups.py` | `python -c "from graph.tool_groups import split_tools"` |
+| P1-02 | 工具分组隔离 | [x] | `graph/tool_groups.py` | `python -c "from graph.tool_groups import split_tools"` |
 | P1-03 | ResearchAgent 实现 | [ ] | `agents/__init__.py`, `agents/research_agent.py`, `prompts/research.txt` | `python -c "from agents.research_agent import research_llm_node"` |
 | P1-04 | PlanWriterAgent 实现 | [ ] | `agents/plan_writer_agent.py`, `prompts/plan_writer.txt` | `python -c "from agents.plan_writer_agent import plan_writer_llm_node"` |
 | P1-05 | MapRouteAgent 实现 | [ ] | `agents/map_route_agent.py`, `prompts/map_route.txt` | `python -c "from agents.map_route_agent import map_route_llm_node"` |
