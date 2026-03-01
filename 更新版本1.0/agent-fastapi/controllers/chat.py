@@ -9,7 +9,7 @@ from core.response import response
 from models.conversations_list import ConversationsList
 from sqlalchemy import desc
 from fastapi.encoders import jsonable_encoder
-from schemas.chat import GetConversationValidate
+from schemas.chat import GetConversationValidate, PreferenceSubmit
 
 
 # ────────────────────────────────────────────────────────
@@ -62,17 +62,25 @@ async def send_message(
 
             # 偏好提交消息
             if msg_type == "preference_submit":
-                preferences = data.get("preferences", {})
-                if not sessionId or not preferences:
+                preferences_raw = data.get("preferences", {})
+                if not sessionId:
                     await websocket.send_json(
-                        {"role": "end", "content": "sessionId和preferences必填", "code": 422}
+                        {"role": "end", "content": "sessionId必填", "code": 422}
+                    )
+                    continue
+                # Pydantic 校验偏好数据
+                try:
+                    validated = PreferenceSubmit(**preferences_raw)
+                except Exception as ve:
+                    await websocket.send_json(
+                        {"role": "end", "content": f"偏好数据校验失败: {ve}", "code": 422}
                     )
                     continue
                 try:
                     async for event in main_model(
                         sessionId, user_id, "", session, graph_deps,
                         msg_type="preference_submit",
-                        preferences=preferences,
+                        preferences=validated.model_dump(),
                     ):
                         await websocket.send_json(event)
                     await websocket.send_json(

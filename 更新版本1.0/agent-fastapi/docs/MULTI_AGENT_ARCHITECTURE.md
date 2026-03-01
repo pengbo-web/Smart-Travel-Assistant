@@ -1742,7 +1742,7 @@ async def main_model(thread_id, user_id, content, session, graph_deps):
 | P2-03 | ChatAgent 实现 | [x] | `agents/chat_agent.py` | `python -c "from agents.chat_agent import chat_agent_node"` |
 | P2-04 | 图结构升级（Supervisor 路由） | [x] | `graph/builder.py` | 手动测试意图分流 |
 | P2-05 | WebSocket 偏好消息处理 | [x] | `controllers/chat.py`, `services/chat.py` | 手动 WebSocket 测试 preference_submit |
-| P2-06 | 偏好验证 Schema | [ ] | `schemas/chat.py` | `python -c "from schemas.chat import PreferenceSubmit"` |
+| P2-06 | 偏好验证 Schema | [x] | `schemas/chat.py` | `python -c "from schemas.chat import PreferenceSubmit"` |
 | P2-07 | 前端 PreferenceCard 组件 | [ ] | `pages/chat/component/PreferenceCard.vue` | 前端渲染偏好卡测试 |
 | P2-08 | 前端 Store 适配 | [ ] | `store/index.ts` | 接收 preference_card 消息类型 |
 
