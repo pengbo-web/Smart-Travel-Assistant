@@ -1724,7 +1724,7 @@ async def main_model(thread_id, user_id, content, session, graph_deps):
 | P1-03 | ResearchAgent 实现 | [x] | `agents/__init__.py`, `agents/research_agent.py`, `prompts/research.txt` | `python -c "from agents.research_agent import research_llm_node"` |
 | P1-04 | PlanWriterAgent 实现 | [x] | `agents/plan_writer_agent.py`, `prompts/plan_writer.txt` | `python -c "from agents.plan_writer_agent import plan_writer_llm_node"` |
 | P1-05 | MapRouteAgent 实现 | [x] | `agents/map_route_agent.py`, `prompts/map_route.txt` | `python -c "from agents.map_route_agent import map_route_llm_node"` |
-| P1-06 | 图结构组装（基础版） | [ ] | `graph/builder.py` | `python -c "from graph.builder import build_multi_agent_graph"` |
+| P1-06 | 图结构组装（基础版） | [x] | `graph/builder.py` | `python -c "from graph.builder import build_multi_agent_graph"` |
 | P1-07 | 服务层适配 | [ ] | `services/chat.py` | 手动 WebSocket 测试 |
 | P1-08 | 应用入口改造 | [ ] | `main.py` | `uvicorn main:app` 启动无报错 |
 | P1-09 | Phase 1 集成验证 | [ ] | 无 | 发送旅游规划请求，三个 Agent 串行执行 |
