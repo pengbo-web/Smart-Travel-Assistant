@@ -1,0 +1,63 @@
+// 检测连续的图片并分组
+function groupImages(children) {
+  if (!children || !children.length) {
+    return [];
+  }
+  
+  var result = [];
+  var currentGroup = [];
+  var groupStartIndex = -1;
+  
+  for (var i = 0; i < children.length; i++) {
+    var item = children[i];
+    
+    // 如果是图片标签
+    if (item.tag === 'img') {
+      if (currentGroup.length === 0) {
+        groupStartIndex = i;
+      }
+      currentGroup.push({
+        item: item,
+        index: i,
+        groupIndex: currentGroup.length
+      });
+    } else {
+      // 如果不是图片，先处理之前的图片组
+      if (currentGroup.length > 0) {
+        result.push({
+          type: 'imgGroup',
+          startIndex: groupStartIndex,
+          endIndex: i - 1,
+          items: currentGroup,
+          count: currentGroup.length
+        });
+        currentGroup = [];
+        groupStartIndex = -1;
+      }
+      // 添加非图片项
+      result.push({
+        type: 'item',
+        item: item,
+        index: i
+      });
+    }
+  }
+  
+  // 处理最后剩余的图片组
+  if (currentGroup.length > 0) {
+    result.push({
+      type: 'imgGroup',
+      startIndex: groupStartIndex,
+      endIndex: children.length - 1,
+      items: currentGroup,
+      count: currentGroup.length
+    });
+  }
+  
+  return result;
+}
+
+module.exports = {
+  groupImages: groupImages
+};
+

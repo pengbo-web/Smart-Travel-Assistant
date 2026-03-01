@@ -1,0 +1,11 @@
+{
+  // "python.analysis.typeCheckingMode": "strict",
+  "files.exclude": {
+    "**/__pycache__": true
+  },
+  "[python]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "git.ignoreLimitWarning": true
+}

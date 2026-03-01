@@ -1,0 +1,1 @@
+<image class="{{attrs.class}}" class="xuan-image" lazy-load="true" mode="aspectFill" src="{{attrs.src}}" style="{{attrs.style}} width:{{size.w}}px;height:{{size.h}}px;" bindload="load"></image>
