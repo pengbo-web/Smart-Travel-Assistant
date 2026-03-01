@@ -9,6 +9,13 @@
       <text class="tool-think">{{ item.toolThink ? "分析思考中..." : "分析思考完毕" }}</text>
       <ToolSteps :tool-list="item.toolList"></ToolSteps>
     </view> -->
+    <!-- 偏好卡片 -->
+    <view v-if="item.role === 'preference_card' && item.preferenceCard">
+      <PreferenceCard
+        :card-data="item.preferenceCard"
+        :message-index="index"
+      />
+    </view>
     <!-- 模型回复的消息 -->
     <view class="ai-message" v-if="item.role === 'assistant' && item.content != ''">
       <towxml :nodes="appContext.$towxml(item.content, 'markdown')"></towxml>
@@ -30,6 +37,7 @@
 <script setup lang="ts">
 // 步骤条
 import ToolSteps from "./ToolSteps.vue";
+import PreferenceCard from "./PreferenceCard.vue";
 import { projectStore } from "@/store/index";
 const pinia = projectStore();
 import { getCurrentInstance, ref } from "vue";

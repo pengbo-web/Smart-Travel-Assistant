@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import type { UserLoginResType, ConversationListType, MessageListType, AiMessageType, ModelMapType } from "@/types/index";
+import type { UserLoginResType, ConversationListType, MessageListType, AiMessageType, ModelMapType, PreferenceCardType } from "@/types/index";
 const requestUrl = "ws://127.0.0.1:4000";
 import { makeUpMap } from "@/api/map";
 // pinia的数据只是临时存储，如果刷新页面就会丢失
@@ -43,11 +43,19 @@ export const projectStore = defineStore("app", {
           const modelObj = JSON.parse(res.data) as AiMessageType;
           // 取对话最后一项
           const aiMessageObj = this.messageList[this.messageList.length - 1]!;
+          // 偏好卡片消息
+          if (modelObj.role === "preference_card") {
+            aiMessageObj.preferenceCard = modelObj.content as PreferenceCardType;
+            aiMessageObj.role = "preference_card";
+            aiMessageObj.loadingCircle = false;
+            aiMessageObj.toolThink = false;
+            // 不设置 disabledStatus = false，用户还需提交偏好后才能继续
+          }
           // 如果是工具返回
           if (modelObj.role == "tool") {
             // 收到模型回复，把loading加载去掉
             aiMessageObj.toolThink = true;
-            aiMessageObj.toolList?.push(modelObj.content);
+            aiMessageObj.toolList?.push(modelObj.content as string);
           }
           // 如果有工具结果返回
           if (modelObj.role == "tool_result") {
@@ -71,11 +79,11 @@ export const projectStore = defineStore("app", {
             }
           }
           // 如果是模型返回
-          if (modelObj.role == "assistant" && modelObj.content.trim() !== "") {
+          if (modelObj.role == "assistant" && typeof modelObj.content === "string" && modelObj.content.trim() !== "") {
             // 收到模型回复，把loading加载去掉
             aiMessageObj.toolThink = false;
             aiMessageObj.loadingCircle = false;
-            aiMessageObj.content += modelObj.content;
+            aiMessageObj.content += modelObj.content as string;
           }
           // 如果模型回复完毕，或者回复出错
           if (modelObj.role == "end") {

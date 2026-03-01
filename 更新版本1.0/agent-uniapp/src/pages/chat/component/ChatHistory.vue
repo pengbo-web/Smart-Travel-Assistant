@@ -29,7 +29,7 @@ import { projectStore } from "@/store/index";
 const pinia = projectStore();
 import { ConversationListApi, GetConversationApi } from "@/api/request";
 import { onLoad } from "@dcloudio/uni-app";
-import type { MapDataType, MessageListType, ModelMapType } from "@/types/index";
+import type { MapDataType, MessageListType, ModelMapType, PreferenceCardType } from "@/types/index";
 import { ref } from "vue";
 import { makeUpMap } from "@/api/map";
 // 获取对话列表数据
@@ -50,11 +50,20 @@ const getItemSession = async (index: number, thread_id: string) => {
   res.data.forEach((item) => {
     // 如果是用户的消息
     if (item.role === "user") {
-      newSessionData.value.push(item);
+      newSessionData.value.push({ role: "user", content: item.content as string });
+    }
+    // 偏好卡片
+    if (item.role === "preference_card") {
+      newSessionData.value.push({
+        role: "preference_card",
+        content: "",
+        preferenceCard: item.content as PreferenceCardType,
+        preferenceSubmitted: true,  // 历史记录中的偏好卡片已提交
+      });
     }
     // 如果是工具名称
     if (item.role === "tool") {
-      toolList.value.push(item.content);
+      toolList.value.push(item.content as string);
     }
     // 如果是地图工具结果返回
     if (item.role === "tool_result") {
@@ -73,7 +82,7 @@ const getItemSession = async (index: number, thread_id: string) => {
     }
     // 如果是模型消息
     if (item.role === "assistant") {
-      newSessionData.value.push(item);
+      newSessionData.value.push({ role: "assistant", content: item.content as string });
       const obj = newSessionData.value[newSessionData.value.length - 1]!;
       if (toolList.value.length > 0) {
         if (obj) obj.toolList = toolList.value;

@@ -29,20 +29,53 @@ export type ConversationListType = {
 export type CreateConversationType = {
   sessionId: string;
 };
+
+// ──────── 偏好卡片类型（Multi-Agent）────────
+
+// 偏好选项字段定义
+export type PreferenceField = {
+  key: string;
+  label: string;
+  options?: string[];
+  multi?: boolean;        // 是否多选
+  type?: "text" | "date"; // 文本输入或日期选择
+  placeholder?: string;
+};
+
+// 偏好卡片数据
+export type PreferenceCardType = {
+  question: string;
+  fields: PreferenceField[];
+};
+
+// 用户选择的偏好
+export type UserPreferences = {
+  travelers: string;
+  pace: string;
+  style: string[];
+  budget: string;
+  departure: string;
+  travel_date: string;
+};
+
+// ──────── 消息类型 ────────
+
 // 获取某个会话历史接口返回的数据
 export type AiMessageType = {
-  role: "user" | "tool" | "tool_result" | "assistant" | "end";
-  content: string;
+  role: "user" | "tool" | "tool_result" | "assistant" | "end" | "preference_card";
+  content: string | PreferenceCardType;
   code?: number;
 };
 // 用户和模型的对话数据类型
 export type MessageListType = {
-  role: "user" | "tool" | "tool_result" | "assistant" | "end"; //角色
+  role: "user" | "tool" | "tool_result" | "assistant" | "end" | "preference_card"; //角色
   content: string; //用户提问或者模型回复的文字内容
   loadingCircle?: boolean; //发送时等待模型回复的loading
   toolThink?: boolean; //工具返回思考开始/结束
   toolList?: string[]; //返回的工具列表
   modelSuccess?: boolean; //模型是否回复成功(用作地图展示)
+  preferenceCard?: PreferenceCardType; // 偏好卡片数据
+  preferenceSubmitted?: boolean;       // 偏好是否已提交
   // 地图展示
   mapDataList?: MapDataType[];
 };
