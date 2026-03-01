@@ -3,66 +3,112 @@ from jwt_create import get_current_user_ws, get_current_user
 from typing import Dict
 from sqlmodel import Session, select
 from database import get_session
-from state_graph import ToolInfo
-from state_graph import get_tool_list_ws, get_tool_list
-from services.chat import main_model, conversation_data, get_location_data
+from services.chat import main_model, conversation_data
 import uuid
 from core.response import response
 from models.conversations_list import ConversationsList
 from sqlalchemy import desc
 from fastapi.encoders import jsonable_encoder
-from schemas.chat import GetConversationValidate, LocationDataValidate
+from schemas.chat import GetConversationValidate
+
+
+# ────────────────────────────────────────────────────────
+# 从 app.state 获取工具分组（Multi-Agent 版）
+# ────────────────────────────────────────────────────────
+
+
+def get_tool_groups_ws(websocket: WebSocket) -> dict:
+    """WebSocket 专用：从 app.state 获取工具分组"""
+    tool_groups = getattr(websocket.app.state, "tool_groups", None)
+    if tool_groups is None:
+        raise RuntimeError("工具分组未初始化")
+    return tool_groups
+
+
+def get_tool_groups(request=Depends()):
+    """HTTP 接口专用：从 app.state 获取工具分组"""
+    from fastapi import Request
+
+    def _inner(request: Request) -> dict:
+        tool_groups = getattr(request.app.state, "tool_groups", None)
+        if tool_groups is None:
+            raise RuntimeError("工具分组未初始化")
+        return tool_groups
+
+    return _inner
+
 
 router = APIRouter(prefix="/chat", tags=["和模型对话"])
 
 
-# 和模型对话(为什么要用websocket，保证模型输出太多的话，中途不会被打断)
+# 和模型对话（Multi-Agent 版，支持偏好提交）
 @router.websocket("/send_message")
 async def send_message(
     websocket: WebSocket,
     session: Session = Depends(get_session),
-    tool_info: ToolInfo = Depends(get_tool_list_ws),
 ):
-    print("进来")
     # 建立对话连接
     await websocket.accept()
-    # token校验
+    # token 校验
     user_id = await get_current_user_ws(websocket)
     if user_id == "401":
         return
-    # 前端发送的数据格式
-    """
-  {'sessionId':'会话id','content':'发送给模型的问题'}
-  """
+
+    # 从 app.state 获取工具分组
+    tool_groups = get_tool_groups_ws(websocket)
+
     try:
         while True:
-            # 循环接受前端消息
             data: Dict[str, str] = await websocket.receive_json()
             print("收到消息:", data)
-            # 参数校验
+
             sessionId = data.get("sessionId", "").strip()
-            content = data.get("content", "").strip()
-            if not sessionId or not content:
-                await websocket.send_json(
-                    {"role": "end", "content": "sessionId和content必填", "code": 422}
-                )
-                continue
-            # 调用对话
-            # await main_model(sessionId, user_id, content, session, tool_info)
-            try:
-                async for event in main_model(
-                    sessionId, user_id, content, session, tool_info
-                ):
-                    await websocket.send_json(event)
-                # 模型回复结束
-                await websocket.send_json(
-                    {"role": "end", "content": "模型回复结束", "code": 200}
-                )
-            except Exception as err:  # type: ignore
-                print(err)
-                await websocket.send_json(
-                    {"role": "end", "content": "出错了", "code": 500}
-                )
+            msg_type = data.get("type", "normal")  # "normal" | "preference_submit"
+
+            # 偏好提交消息
+            if msg_type == "preference_submit":
+                preferences = data.get("preferences", {})
+                if not sessionId or not preferences:
+                    await websocket.send_json(
+                        {"role": "end", "content": "sessionId和preferences必填", "code": 422}
+                    )
+                    continue
+                try:
+                    async for event in main_model(
+                        sessionId, user_id, "", session, tool_groups,
+                        msg_type="preference_submit",
+                        preferences=preferences,
+                    ):
+                        await websocket.send_json(event)
+                    await websocket.send_json(
+                        {"role": "end", "content": "模型回复结束", "code": 200}
+                    )
+                except Exception as err:
+                    print(err)
+                    await websocket.send_json(
+                        {"role": "end", "content": "出错了", "code": 500}
+                    )
+            else:
+                # 普通消息
+                content = data.get("content", "").strip()
+                if not sessionId or not content:
+                    await websocket.send_json(
+                        {"role": "end", "content": "sessionId和content必填", "code": 422}
+                    )
+                    continue
+                try:
+                    async for event in main_model(
+                        sessionId, user_id, content, session, tool_groups,
+                    ):
+                        await websocket.send_json(event)
+                    await websocket.send_json(
+                        {"role": "end", "content": "模型回复结束", "code": 200}
+                    )
+                except Exception as err:
+                    print(err)
+                    await websocket.send_json(
+                        {"role": "end", "content": "出错了", "code": 500}
+                    )
     except WebSocketDisconnect as error:
         print("用户断开连接", error)
 
@@ -94,31 +140,21 @@ async def all_conversation_list(
 async def get_conversation(
     req: GetConversationValidate,
     user_id: str = Depends(get_current_user),
-    tool_info: ToolInfo = Depends(get_tool_list),
 ):
+    # 从请求中获取 tool_groups
+    from fastapi import Request
+
+    # 注意：此处需要从 app.state 获取 tool_groups
+    # 但 Depends 无法直接在 post 中获取 Request，所以走全局变量
+    # TODO: P1-08 中通过 main.py 改造统一注入
+    tool_groups = {}  # 占位，将在 P1-08 中通过 Depends 注入
     print(req.sessionId)
-    res = await conversation_data(req.sessionId, tool_info)
+    res = await conversation_data(req.sessionId, tool_groups)
     return response(res)
 
 
-"""
-用户：帮我规划一个西安三日游
-
-模型：以下是我为你规划的一个西安三日游：
-第一天：秦始皇陵
-第二天：华清宫
-第三天：武则天乾陵
-祝你玩得愉快
-"""
-
-
-# 获取经纬度数据
-@router.post("/location_data")
-async def location_data(
-    req: LocationDataValidate,
-    user_id: str = Depends(get_current_user),
-    tool_info: ToolInfo = Depends(get_tool_list),
-):
-    print(req.content)
-    res = await get_location_data(req.content, tool_info)
-    return response(res)
+# ────────────────────────────────────────────────────────
+# 注意：原有的 location_data 接口已废弃
+# Multi-Agent 架构中，MapRouteAgent 直接在图内调用 map_data 工具
+# 无需前端单独请求经纬度数据
+# ────────────────────────────────────────────────────────
