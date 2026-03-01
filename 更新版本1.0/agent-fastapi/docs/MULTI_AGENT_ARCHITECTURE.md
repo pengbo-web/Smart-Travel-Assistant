@@ -1757,8 +1757,8 @@ async def main_model(thread_id, user_id, content, session, graph_deps):
 | P3-01 | TransportAgent 实现 | [x] | `agents/transport_agent.py`, `prompts/transport.txt` | `python -c "from agents.transport_agent import transport_llm_node"` |
 | P3-02 | 并发分叉 + MergeNode | [x] | `graph/builder.py` | 手动测试并发执行 |
 | P3-03 | 去除 Semaphore 串行瓶颈 | [x] | `graph/builder.py` | 从设计上即为并发，无串行瓶颈 |
-| P3-04 | 含出发地场景测试 | [ ] | 无 | 发送含出发城市的请求 |
-| P3-05 | 无出发地场景测试 | [ ] | 无 | 发送不含出发城市的请求 |
+| P3-04 | 含出发地场景测试 | [-] | 无 | 发送含出发城市的请求（需手动测试） |
+| P3-05 | 无出发地场景测试 | [-] | 无 | 发送不含出发城市的请求（需手动测试） |
 
 **依赖关系**: P3-01 → P3-02 → P3-03 → P3-04/P3-05
 
@@ -1768,7 +1768,7 @@ async def main_model(thread_id, user_id, content, session, graph_deps):
 
 | 任务 ID | 任务名称 | 状态 | 修改的文件 | 测试方法 |
 |---------|---------|------|-----------|---------|
-| P4-01 | 删除旧文件 | [ ] | 删除 `state_graph.py`, `model_prompt.py` | 全量导入无报错 |
+| P4-01 | 删除旧文件 | [x] | 删除 `state_graph.py`, `model_prompt.py` | 全量导入无报错 |
 | P4-02 | 单元测试补充 | [ ] | `tests/` | `pytest tests/unit/ -v` |
 | P4-03 | 集成测试 | [ ] | `tests/` | `pytest tests/integration/ -v` |
 | P4-04 | 端到端测试 | [ ] | `tests/` | `pytest tests/e2e/ -v` |
